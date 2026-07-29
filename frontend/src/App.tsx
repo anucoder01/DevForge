@@ -3,19 +3,13 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import Dashboard from './pages/Dashboard';
+import ProjectDetail from './pages/ProjectDetail';
+import Settings from './pages/Settings';
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated } = useAuth();
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
-};
-
-const Dashboard = () => {
-  return (
-    <div className="text-center py-20">
-      <h1 className="text-4xl font-bold text-gray-900">Welcome to DevForge Dashboard</h1>
-      <p className="mt-4 text-xl text-gray-500">Your projects and tasks will appear here soon!</p>
-    </div>
-  );
 };
 
 function AppRoutes() {
@@ -29,6 +23,22 @@ function AppRoutes() {
           element={
             <PrivateRoute>
               <Dashboard />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/projects/:projectId"
+          element={
+            <PrivateRoute>
+              <ProjectDetail />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <PrivateRoute>
+              <Settings />
             </PrivateRoute>
           }
         />
