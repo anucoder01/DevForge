@@ -89,7 +89,7 @@ export default function ProjectDetail() {
   // Activity logs state
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [loadingActivity, setLoadingActivity] = useState(false);
-  const [activeTab, setActiveTab] = useState<'members' | 'activity' | 'git' | 'automation'>('members');
+  const [activeTab, setActiveTab] = useState<'members' | 'activity' | 'git' | 'automation' | 'email'>('members');
 
   // View mode state (board vs analytics charts)
   const [viewMode, setViewMode] = useState<'board' | 'analytics'>('board');
@@ -115,6 +115,12 @@ export default function ProjectDetail() {
   const [ruleTriggerValue, setRuleTriggerValue] = useState<string>('IN_PROGRESS');
   const [ruleAction, setRuleAction] = useState<'MOVE_TASK' | 'AUTO_ASSIGN'>('MOVE_TASK');
   const [ruleActionValue, setRuleActionValue] = useState<string>('DONE');
+
+  // Email Simulation state
+  const [emailFrom, setEmailFrom] = useState(user?.email || '');
+  const [emailSubject, setEmailSubject] = useState('New feature request');
+  const [emailText, setEmailText] = useState('Please implement the new feature.');
+  const [emailSimLoading, setEmailSimLoading] = useState(false);
 
   const isOwner = project?.owner?.id === user?.id;
 
@@ -233,6 +239,28 @@ export default function ProjectDetail() {
     } catch (err) {
       console.error(err);
       alert('Failed to delete task.');
+    }
+  };
+
+  const handleSimulateEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!project?.inboxEmailAddress) return;
+    try {
+      setEmailSimLoading(true);
+      await projectsApi.simulateEmail({
+        to: project.inboxEmailAddress,
+        from: emailFrom,
+        subject: emailSubject,
+        text: emailText
+      });
+      await fetchProjectData();
+      await fetchActivityLogs();
+      alert('Email simulation successful! Task created.');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to simulate email webhook.');
+    } finally {
+      setEmailSimLoading(false);
     }
   };
 
@@ -1104,6 +1132,15 @@ export default function ProjectDetail() {
                 >
                   Automations
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('email')}
+                  className={`pb-2 transition border-b-2 ${
+                    activeTab === 'email' ? 'border-white text-white font-bold' : 'border-transparent text-indigo-200 hover:text-white'
+                  }`}
+                >
+                  Email Intake
+                </button>
               </div>
             </div>
 
@@ -1486,8 +1523,67 @@ export default function ProjectDetail() {
                       </div>
                     )}
                   </div>
+                  </div>
                 </div>
-              )}
+              ) : activeTab === 'email' ? (
+                <div className="space-y-4">
+                  <h4 className="font-bold text-gray-900 text-sm flex items-center gap-1.5 border-b pb-1.5">
+                    Email-to-Task Ingestion
+                  </h4>
+                  <div className="text-xs text-gray-600 mb-4">
+                    Send an email to this address to automatically create a task in this project:
+                    <div className="mt-2 p-2 bg-gray-100 dark:bg-gray-800 rounded text-center font-mono text-sm font-bold text-indigo-700 dark:text-indigo-400 select-all">
+                      {project?.inboxEmailAddress || 'Not configured'}
+                    </div>
+                  </div>
+                  
+                  <form onSubmit={handleSimulateEmail} className="space-y-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <h5 className="font-bold text-xs text-gray-800 dark:text-gray-200">Simulate Inbound Email</h5>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">From</label>
+                        <input
+                          type="email"
+                          required
+                          value={emailFrom}
+                          onChange={(e) => setEmailFrom(e.target.value)}
+                          className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-lg text-xs bg-white dark:bg-gray-800 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Subject</label>
+                        <input
+                          type="text"
+                          required
+                          value={emailSubject}
+                          onChange={(e) => setEmailSubject(e.target.value)}
+                          className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-lg text-xs bg-white dark:bg-gray-800 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-[10px] font-bold text-gray-400 uppercase">Text / Body</label>
+                      <textarea
+                        required
+                        rows={3}
+                        value={emailText}
+                        onChange={(e) => setEmailText(e.target.value)}
+                        className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-lg text-xs bg-white dark:bg-gray-800 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+                    <div className="flex justify-end pt-2">
+                      <button
+                        type="submit"
+                        disabled={emailSimLoading}
+                        className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 rounded-lg transition"
+                      >
+                        {emailSimLoading ? 'Simulating...' : 'Send Simulation'}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              ) : null}
+
             </div>
           </div>
         </div>
