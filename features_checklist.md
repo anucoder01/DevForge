@@ -28,7 +28,7 @@ Use this checklist to track the development of features that will make DevForge 
   - Connect branches, commits, and Pull Requests directly to task cards using task reference IDs (e.g., auto-move a task to "Done" when its PR is merged).
 - [x] **2. Customizable Board Automation Rules**
   - No-code rules builder (e.g., "When all subtasks are complete, transition card to Done" or "When task is moved to In Progress, auto-assign to the actor").
-- [ ] **3. Email-to-Task Ingestion Pipeline**
+- [x] **3. Email-to-Task Ingestion Pipeline**
   - Generate new task cards automatically from emails sent to a project's unique intake inbox address.
 
 ### 🧠 Collaboration & Productivity
