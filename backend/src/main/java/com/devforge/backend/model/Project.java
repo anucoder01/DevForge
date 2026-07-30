@@ -14,6 +14,9 @@ public class Project {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(unique = true)
+    private String inboxEmailAddress;
+
     @NotBlank
     @Size(max = 100)
     private String name;
@@ -43,12 +46,16 @@ public class Project {
         this.description = description;
         this.owner = owner;
         this.createdAt = LocalDateTime.now();
+        this.inboxEmailAddress = "intake-" + java.util.UUID.randomUUID().toString() + "@devforge.local";
     }
 
     @PrePersist
     protected void onCreate() {
         if (this.createdAt == null) {
             this.createdAt = LocalDateTime.now();
+        }
+        if (this.inboxEmailAddress == null) {
+            this.inboxEmailAddress = "intake-" + java.util.UUID.randomUUID().toString() + "@devforge.local";
         }
     }
 
@@ -98,5 +105,13 @@ public class Project {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public String getInboxEmailAddress() {
+        return inboxEmailAddress;
+    }
+
+    public void setInboxEmailAddress(String inboxEmailAddress) {
+        this.inboxEmailAddress = inboxEmailAddress;
     }
 }
