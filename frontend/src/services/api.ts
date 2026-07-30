@@ -34,6 +34,7 @@ export interface Project {
   owner: User;
   members: User[];
   createdAt: string;
+  inboxEmailAddress?: string;
 }
 
 export interface Task {
@@ -57,6 +58,7 @@ export const projectsApi = {
   delete: (id: number) => api.delete(`/projects/${id}`),
   addMember: (projectId: number, userId: number) => api.post(`/projects/${projectId}/members`, { userId }),
   removeMember: (projectId: number, userId: number) => api.delete(`/projects/${projectId}/members/${userId}`),
+  simulateEmail: (data: { to: string; from: string; subject: string; text: string }) => api.post('/webhooks/email-intake', data),
 };
 
 export const tasksApi = {
