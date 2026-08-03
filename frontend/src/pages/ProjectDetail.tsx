@@ -1336,7 +1336,7 @@ export default function ProjectDetail() {
                     </div>
                   </form>
                 </div>
-              ) : (
+              ) : activeTab === 'automations' ? (
                 <div className="space-y-6">
                   <div>
                     <h4 className="font-bold text-gray-900 text-sm flex items-center gap-1.5 border-b pb-1.5 mb-3">
@@ -1522,7 +1522,6 @@ export default function ProjectDetail() {
                         ))}
                       </div>
                     )}
-                  </div>
                   </div>
                 </div>
               ) : activeTab === 'email' ? (
