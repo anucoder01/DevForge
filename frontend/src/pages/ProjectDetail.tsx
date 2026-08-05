@@ -9,8 +9,8 @@ import {
   subtasksApi,
   activityApi,
   gitApi,
-  automationsApi,
   aiApi,
+  chatApi,
 } from '../services/api';
 import type {
   Project,
@@ -21,7 +21,10 @@ import type {
   ActivityLog,
   GitEvent,
   BoardAutomationRule,
+  ChatMessage,
 } from '../services/api';
+import { Client } from '@stomp/stompjs';
+import SockJS from 'sockjs-client';
 import {
   ArrowLeft,
   Users,
@@ -38,9 +41,11 @@ import {
   Activity,
   ListTodo,
   CheckSquare,
-  GitCommit,
   GitPullRequest,
   Zap,
+  MessageSquare,
+  Send,
+  X,
 } from 'lucide-react';
 
 export default function ProjectDetail() {
@@ -126,6 +131,12 @@ export default function ProjectDetail() {
   const [emailText, setEmailText] = useState('Please implement the new feature.');
   const [emailSimLoading, setEmailSimLoading] = useState(false);
 
+  // Chat state
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState('');
+  const [stompClient, setStompClient] = useState<Client | null>(null);
+
   const isOwner = project?.owner?.id === user?.id;
 
   const fetchProjectData = async () => {
@@ -169,12 +180,61 @@ export default function ProjectDetail() {
     }
   };
 
+  const fetchChatHistory = async () => {
+    try {
+      const res = await chatApi.getHistory(projId);
+      setChatMessages(res.data);
+    } catch (err) {
+      console.error('Failed to load chat history', err);
+    }
+  };
+
   useEffect(() => {
     if (projId) {
       fetchProjectData();
       fetchActivityLogs();
     }
   }, [projId]);
+
+  useEffect(() => {
+    if (!projId || !isChatOpen) return;
+
+    fetchChatHistory();
+
+    const socket = new SockJS('http://localhost:8080/ws');
+    const client = new Client({
+      webSocketFactory: () => socket,
+      debug: (str) => {
+        // console.log(str);
+      },
+      onConnect: () => {
+        client.subscribe(`/topic/chat/${projId}`, (message) => {
+          if (message.body) {
+            setChatMessages((prev) => [...prev, JSON.parse(message.body)]);
+          }
+        });
+      },
+    });
+
+    client.activate();
+    setStompClient(client);
+
+    return () => {
+      client.deactivate();
+    };
+  }, [projId, isChatOpen]);
+
+  const handleSendMessage = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatInput.trim() || !stompClient || !user) return;
+
+    stompClient.publish({
+      destination: `/app/chat/${projId}`,
+      body: JSON.stringify({ senderId: user.id, content: chatInput.trim() }),
+    });
+
+    setChatInput('');
+  };
 
   const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -649,6 +709,15 @@ export default function ProjectDetail() {
               <UserPlus className="h-4 w-4" />
             </button>
           )}
+          <button
+            onClick={() => setIsChatOpen(!isChatOpen)}
+            className={`inline-flex items-center justify-center p-1.5 rounded-lg border transition ${
+              isChatOpen ? 'bg-indigo-600 text-white border-indigo-600' : 'text-indigo-600 bg-white border-indigo-200 hover:bg-indigo-50'
+            }`}
+            title="Open Chat Room"
+          >
+            <MessageSquare className="h-4 w-4" />
+          </button>
         </div>
       </div>
 
@@ -2003,6 +2072,66 @@ export default function ProjectDetail() {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+      {/* Chat Sidebar Overlay */}
+      {isChatOpen && (
+        <div className="fixed inset-y-0 right-0 w-80 sm:w-96 bg-white shadow-2xl flex flex-col z-50 animate-slideInRight border-l border-gray-100">
+          <div className="px-4 py-3 bg-indigo-600 text-white flex justify-between items-center shrink-0 shadow">
+            <div className="flex items-center gap-2">
+              <MessageSquare className="h-5 w-5" />
+              <h3 className="font-bold">Project Chat</h3>
+            </div>
+            <button
+              onClick={() => setIsChatOpen(false)}
+              className="text-white hover:text-indigo-100 p-1"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 flex flex-col">
+            {chatMessages.map((msg, idx) => (
+              <div
+                key={idx}
+                className={`flex flex-col max-w-[85%] ${
+                  msg.sender.id === user?.id ? 'self-end items-end' : 'self-start items-start'
+                }`}
+              >
+                <span className="text-[10px] text-gray-500 font-medium mb-0.5 px-1">
+                  {msg.sender.username} • {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+                <div
+                  className={`px-3 py-2 rounded-2xl text-sm ${
+                    msg.sender.id === user?.id
+                      ? 'bg-indigo-600 text-white rounded-tr-none'
+                      : 'bg-white border border-gray-200 text-gray-800 rounded-tl-none shadow-sm'
+                  }`}
+                >
+                  {msg.content}
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          <div className="p-3 bg-white border-t border-gray-200">
+            <form onSubmit={handleSendMessage} className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Type a message..."
+                className="flex-1 px-3 py-2 bg-gray-50 border border-gray-300 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-colors"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+              />
+              <button
+                type="submit"
+                disabled={!chatInput.trim()}
+                className="p-2 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors shrink-0"
+              >
+                <Send className="h-4 w-4" />
+              </button>
+            </form>
           </div>
         </div>
       )}
