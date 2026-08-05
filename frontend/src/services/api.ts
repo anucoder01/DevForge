@@ -187,4 +187,16 @@ export const aiApi = {
   planSubtasks: (data: { title: string; description: string }) => api.post<string[]>('/ai/plan', data),
 };
 
+export interface ChatMessage {
+  id: number;
+  projectId: number;
+  sender: User;
+  content: string;
+  timestamp: string;
+}
+
+export const chatApi = {
+  getHistory: (projectId: number) => api.get<ChatMessage[]>(`/projects/${projectId}/chat-history`),
+};
+
 export default api;
