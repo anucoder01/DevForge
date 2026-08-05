@@ -10,6 +10,7 @@ import {
   activityApi,
   gitApi,
   automationsApi,
+  aiApi,
 } from '../services/api';
 import type {
   Project,
@@ -106,6 +107,9 @@ export default function ProjectDetail() {
   const [linkedGitEvents, setLinkedGitEvents] = useState<GitEvent[]>([]);
   const [loadingGitEvents, setLoadingGitEvents] = useState(false);
   const [taskDetailTab, setTaskDetailTab] = useState<'subtasks' | 'comments' | 'git'>('subtasks');
+  
+  // AI State
+  const [isGeneratingSubtasks, setIsGeneratingSubtasks] = useState(false);
 
   // Board Automation Rules state
   const [automationRules, setAutomationRules] = useState<BoardAutomationRule[]>([]);
@@ -429,6 +433,38 @@ export default function ProjectDetail() {
     } catch (err) {
       console.error(err);
       alert('Failed to delete comment.');
+    }
+  };
+
+  const handleGenerateSubtasks = async () => {
+    if (!selectedTask) return;
+    setIsGeneratingSubtasks(true);
+    try {
+      const { data: generatedSubtasks } = await aiApi.planSubtasks({
+        title: selectedTask.title,
+        description: selectedTask.description || ''
+      });
+      // Add each generated subtask
+      for (const title of generatedSubtasks) {
+        const res = await subtasksApi.create(selectedTask.id, title);
+        setSubtasks((prev) => [...prev, res.data]);
+      }
+      
+      // Update the main tasks list so progress bar re-renders
+      setTasks((prevTasks) => 
+        prevTasks.map(t => {
+           if (t.id === selectedTask.id) {
+               // A bit hacky: we refetch project data later to get complete nested objects
+           }
+           return t;
+        })
+      );
+      fetchProjectData();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to generate subtasks.');
+    } finally {
+      setIsGeneratingSubtasks(false);
     }
   };
 
@@ -1767,9 +1803,19 @@ export default function ProjectDetail() {
               {/* Subtasks Checklist Section */}
               {selectedTask && taskDetailTab === 'subtasks' && (
                 <div className="pt-4 space-y-4">
-                  <h4 className="font-bold text-gray-900 text-sm flex items-center gap-1.5">
-                    <CheckSquare className="h-4 w-4 text-indigo-500 animate-pulse" /> Subtasks Checklist
-                  </h4>
+                  <div className="flex justify-between items-center">
+                    <h4 className="font-bold text-gray-900 text-sm flex items-center gap-1.5">
+                      <CheckSquare className="h-4 w-4 text-indigo-500 animate-pulse" /> Subtasks Checklist
+                    </h4>
+                    <button
+                      type="button"
+                      onClick={handleGenerateSubtasks}
+                      disabled={isGeneratingSubtasks || !selectedTask}
+                      className="text-xs font-semibold px-2 py-1 bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-md transition disabled:opacity-50 flex items-center gap-1"
+                    >
+                      ✨ {isGeneratingSubtasks ? 'Generating...' : 'Suggest AI Subtasks'}
+                    </button>
+                  </div>
 
                   {/* List of subtasks */}
                   <div className="space-y-1 max-h-[180px] overflow-y-auto pr-1">

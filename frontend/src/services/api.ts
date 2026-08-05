@@ -183,4 +183,8 @@ export const automationsApi = {
   delete: (ruleId: number) => api.delete<{ message: string }>(`/automation-rules/${ruleId}`),
 };
 
+export const aiApi = {
+  planSubtasks: (data: { title: string; description: string }) => api.post<string[]>('/ai/plan', data),
+};
+
 export default api;
